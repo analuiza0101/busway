@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="description" content="Busway - Encontre pontos e linhas de ônibus em João Pessoa.">
+    <meta name="theme-color" content="#101714">
+
+    <title>Busway</title>
+
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+    <header class="header">
+
+        <button class="menu-button" id="menuButton"
+            aria-label="Abrir menu" aria-expanded="false">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
+        <a href="home.html" class="logo">
+            <img src="../busway/img/logo.svg.png" alt="Logo Busway">
+            <span>busway</span>
+        </a>
+
+    </header>
+
+    <div class="overlay" id="overlay"></div>
+
+    <aside class="sidebar" id="sidebar">
+
+        <div class="sidebar-header">
+
+            <a href="home.html" class="sidebar-logo">
+                <img src="../busway/img/logo.svg.png" alt="">
+                <span>busway</span>
+            </a>
+
+            <button class="close-button" id="closeButton"
+                aria-label="Fechar menu">
+                &times;
+            </button>
+
+        </div>
+
+        <p class="menu-subtitle">MENU PRINCIPAL</p>
+
+        <nav class="menu-options">
+
+            <button class="menu-item" data-section="Salvos">
+                <span class="menu-icon">❤</span>
+                <span>Salvos</span>
+            </button>
+
+            <button class="menu-item" data-section="Avisos">
+                <span class="menu-icon">⚠</span>
+                <span>Avisos</span>
+            </button>
+
+            <button class="menu-item" data-section="Configurações">
+                <span class="menu-icon">⚙</span>
+                <span>Configurações</span>
+            </button>
+
+            <button class="menu-item" data-section="Ajuda">
+                <span class="menu-icon">?</span>
+                <span>Ajuda</span>
+            </button>
+
+        </nav>
+
+        <div class="sidebar-footer">
+            <span>BUSWAY</span>
+            <p>Seu caminho, mais fácil.</p>
+        </div>
+
+    </aside>
+
+    <main class="content">
+
+        <section class="map-section">
+
+            <div class="map-container">
+
+                <div id="map" aria-label="Mapa de pontos de ônibus de João Pessoa"></div>
+
+                <button class="location-button" id="locationButton"
+                    title="Mostrar minha localização"
+                    aria-label="Mostrar minha localização">
+                    ⌖
+                </button>
+
+                <div class="map-status" id="mapStatus" role="status" aria-live="polite">
+                    Carregando mapa...
+                </div>
+
+            </div>
+
+            <div class="map-legend">
+
+                <div>
+                    <span class="legend-dot bus-dot"></span>
+                    Pontos de ônibus
+                </div>
+
+                <div>
+                    <span class="legend-dot user-dot"></span>
+                    Minha localização
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <div class="notification" id="notification" role="status"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script src="js/main.js"></script>
+
+</body>
+</html>
