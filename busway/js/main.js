@@ -26,7 +26,7 @@ document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeMenu();
 });
 
-/*notificacoes*/
+//notificacoes
 
 let notificationTimeout;
 
@@ -49,14 +49,20 @@ document.querySelectorAll(".menu-item").forEach((item) => {
     });
 });
 
-/*mapa*/
+//mapa
 
 const mapStatus = document.getElementById("mapStatus");
 const locationButton = document.getElementById("locationButton");
 
 const joaoPessoa = [-7.1195, -34.8450];
 
-const map = L.map("map").setView(joaoPessoa, 13);
+const map = L.map("map", {
+    zoomControl: false,
+}).setView(joaoPessoa, 13);
+
+L.control.zoom({
+    position: "bottomright"
+}).addTo(map);
 
 map.getPane("tilePane").style.filter =
     "invert(100%) hue-rotate(180deg) brightness(85%) contrast(90%) saturate(65%)";
@@ -69,7 +75,7 @@ L.tileLayer(
     }
 ).addTo(map);
 
-/*fonte dos dados*/
+//fonte dos dados
 
 const emsStopsURL =
     "https://horarios.clickbuspb.com.br/dados/vetores/paradas.geojson";
@@ -82,7 +88,7 @@ const overpassURL =
 
 const MAX_ROUTE_DISTANCE = 80;
 
-/*funcoes de consulta*/
+//funcoes de consulta
 
 async function consultarGeoJSON(url) {
     const response = await fetch(url);
@@ -110,7 +116,7 @@ async function consultarOverpass(query) {
     return await response.json();
 }
 
-/*icones*/
+//icones
 
 const busIcon = L.divIcon({
     className: "",
@@ -126,7 +132,7 @@ const userIcon = L.divIcon({
     iconAnchor: [10, 10]
 });
 
-/*camadas*/
+//camadas
 
 const busStopsLayer = L.layerGroup().addTo(map);
 const busRoutesLayer = L.layerGroup().addTo(map);
@@ -137,12 +143,12 @@ let userAccuracyCircle = null;
 let allStops = [];
 let emsRouteFeatures = [];
 
-/*cache*/
+//cache
 
 const routeCache = new Map();
 const routeRequests = new Map();
 
-/*proteger textos*/
+//proteger textos
 
 function escapeHTML(value) {
     return String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -158,7 +164,7 @@ function escapeHTML(value) {
     });
 }
 
-/*distância entre dois pontos*/
+//distância entre dois pontos
 
 function distanceBetween(lat1, lon1, lat2, lon2) {
     const earthRadius = 6371000;
@@ -178,7 +184,7 @@ function distanceBetween(lat1, lon1, lat2, lon2) {
         Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-/*distância para segmento*/
+//distância para segmento
 
 function distanceToSegment(stop, start, end) {
 
@@ -223,7 +229,7 @@ function distanceToSegment(stop, start, end) {
     );
 }
 
-/*obter distância do itinerário*/
+//obter distância do itinerário
 
 function getRouteDistance(stop, geometry) {
 
@@ -310,7 +316,7 @@ function getRouteDistance(stop, geometry) {
     return minimumDistance;
 }
 
-/*encontrar linhas próximas*/
+//encontrar linhas próximas
 
 function findNearbyEMSRoutes(stop) {
 
@@ -371,7 +377,7 @@ function findNearbyEMSRoutes(stop) {
         .sort((a, b) => a.distance - b.distance);
 }
 
-/*normalizar paradas EMS*/
+//normalizar paradas EMS
 
 function normalizeEMSStop(feature) {
 
@@ -422,7 +428,7 @@ function normalizeEMSStop(feature) {
     };
 }
 
-/*normalizar paradas OSM*/
+//normalizar paradas OSM
 
 function normalizeOSMStop(stop) {
     return {
@@ -434,7 +440,7 @@ function normalizeOSMStop(stop) {
     };
 }
 
-/*verificar duplicação*/
+//verificar duplicação
 
 function isDuplicateStop(stop, existingStops) {
 
@@ -450,7 +456,7 @@ function isDuplicateStop(stop, existingStops) {
     });
 }
 
-/*endereço*/
+//endereço
 
 function getStopAddress(tags) {
 
@@ -484,7 +490,7 @@ function getStopAddress(tags) {
         : "Endereço não informado";
 }
 
-/*mostra linhas no popup*/
+//mostra linhas no popup
 
 function createRoutesContent(routes) {
 
@@ -568,7 +574,7 @@ function createRoutesContent(routes) {
     `;
 }
 
-/*popup da parada*/
+//popup da parada
 
 function createStopPopup(stop, routesContent = "") {
 
@@ -668,7 +674,7 @@ function createStopPopup(stop, routesContent = "") {
     `;
 }
 
-/*carregar rotas da parada*/
+//carregar rotas da parada
 
 async function loadStopRoutes(stop, marker) {
 
@@ -788,7 +794,7 @@ async function loadStopRoutes(stop, marker) {
     await request;
 }
 
-/*carrega itinerários EMS*/
+//carrega itinerários EMS
 
 async function loadEMSRoutes() {
 
@@ -867,7 +873,7 @@ async function loadEMSRoutes() {
     );
 }
 
-/*carrega paradas EMS*/
+//carrega paradas EMS
 
 async function loadEMSStops() {
 
@@ -878,7 +884,7 @@ async function loadEMSStops() {
         .filter(Boolean);
 }
 
-/*carrega paradas OSM*/
+//carrega paradas OSM
 
 async function loadOSMStops() {
 
@@ -925,7 +931,7 @@ async function loadOSMStops() {
         .map(normalizeOSMStop);
 }
 
-/*exibe paradas*/
+//exibe paradas
 
 function displayBusStops(stops) {
 
@@ -958,7 +964,7 @@ function displayBusStops(stops) {
 
 }
 
-/*carrega dados*/
+//carrega dados
 
 async function loadBusStops() {
 
@@ -981,9 +987,7 @@ async function loadBusStops() {
 
     let routesAvailable = false;
 
-    /*
-    Consulta as três fontes.
-    */
+    //Consulta as três fontes.
 
     const results = await Promise.allSettled([
 
@@ -1013,9 +1017,8 @@ async function loadBusStops() {
         console.error("Erro nos itinerários:", results[2].reason);
     }
 
-    /*
-    Combina as duas bases.
-    */
+    //Combina as duas bases.
+
 
     const combinedStops = [...emsStops];
 
@@ -1031,9 +1034,8 @@ async function loadBusStops() {
 
     displayBusStops(allStops);
 
-    /*
-    Status do mapa.
-    */
+    //Status do mapa.
+    
 
     if (emsAvailable && osmAvailable && routesAvailable) {
 
@@ -1063,7 +1065,7 @@ async function loadBusStops() {
 
 }
 
-/*gps*/
+//gps
 
 function locateUser() {
 
@@ -1163,13 +1165,13 @@ function locateUser() {
 
 }
 
-/*botão gps*/
+//botão gps
 
 locationButton.addEventListener(
     "click",
     locateUser
 );
 
-/*iniciar*/
+//iniciar
 
 loadBusStops();
