@@ -492,6 +492,7 @@ function getStopAddress(tags) {
 
 //mostra linhas no popup
 
+
 function createRoutesContent(routes) {
 
     if (!routes.length) {
@@ -510,7 +511,9 @@ function createRoutesContent(routes) {
 
     }
 
-    return routes.map(route => {
+    const groupedRoutes = new Map();
+
+    routes.forEach(route => {
 
         const tags = route.tags || {};
 
@@ -529,49 +532,59 @@ function createRoutesContent(routes) {
             tags.direction_name || "Sentido não informado"
         );
 
-        const operator = escapeHTML(
-            tags.operator_name || "Não informado"
-        );
+        const key = line + "-" + name;
 
-        const distance = Math.round(route.distance);
+        if (!groupedRoutes.has(key)) {
 
-        return `
+            groupedRoutes.set(key, {
+                line,
+                name,
+                directions: []
+            });
+
+        }
+
+        const group = groupedRoutes.get(key);
+
+        if (!group.directions.includes(direction)) {
+            group.directions.push(direction);
+        }
+
+    });
+
+    return Array.from(groupedRoutes.values())
+        .map(route => `
 
             <div class="stop-route-item">
 
                 <span class="route-tag">
-                    ${line}
+                    ${route.line}
                 </span>
 
                 <p class="stop-message">
-                    <strong>Nome:</strong> ${name}
+                    <strong>Nome:</strong> ${route.name}
                 </p>
 
                 <p class="stop-message">
-                    <strong>Sentido:</strong> ${direction}
+                    <strong>Sentidos:</strong>
                 </p>
 
-                <p class="stop-message">
-                    <strong>Operadora:</strong> ${operator}
-                </p>
-
-                <p class="stop-message">
-                    <strong>Distância aproximada:</strong>
-                    ${distance} metros
-                </p>
+                <ul>
+                    ${route.directions.map(direction => `
+                        <li>${direction}</li>
+                    `).join("")}
+                </ul>
 
             </div>
 
+        `).join("") + `
+
+            <p class="stop-message">
+                Possíveis itinerários próximos. A proximidade
+                não confirma que a linha atenda esta parada.
+            </p>
+
         `;
-
-    }).join("") + `
-
-        <p class="stop-message">
-            Possíveis itinerários próximos. A proximidade
-            não confirma que a linha atenda esta parada.
-        </p>
-
-    `;
 }
 
 //popup da parada
@@ -595,18 +608,6 @@ function createStopPopup(stop, routesContent = "") {
     const operator = escapeHTML(
         tags.operator || "Não informado"
     );
-
-    const shelter = tags.shelter === "yes"
-        ? "Sim"
-        : tags.shelter === "no"
-            ? "Não"
-            : "Não informado";
-
-    const wheelchair = tags.wheelchair === "yes"
-        ? "Acessível"
-        : tags.wheelchair === "no"
-            ? "Não acessível"
-            : "Não informado";
 
     const source = stop.source === "EMS"
         ? "Horários EMS"
@@ -632,17 +633,6 @@ function createStopPopup(stop, routesContent = "") {
                 <strong>Identificação:</strong> ${reference}
             </div>
 
-            <div class="stop-popup-row">
-                <strong>Operadora:</strong> ${operator}
-            </div>
-
-            <div class="stop-popup-row">
-                <strong>Abrigo:</strong> ${shelter}
-            </div>
-
-            <div class="stop-popup-row">
-                <strong>Acessibilidade:</strong> ${wheelchair}
-            </div>
 
             <div class="stop-routes">
 
@@ -950,7 +940,11 @@ function displayBusStops(stops) {
         marker.bindPopup(
             createStopPopup(stop),
             {
-                maxWidth: 300
+                maxWidth: 340,
+                minWidth: 230,
+                maxHeight: 380,
+                autoPan: true,
+                autoPanPadding: [20, 20]
             }
         );
 
