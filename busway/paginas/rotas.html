@@ -1,1 +1,319 @@
-!
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#101714">
+
+    <title>Rotas | Busway</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="../css/rotas.css">
+
+    <style>
+        .line-search-area {
+            margin-top: 25px;
+        }
+
+        .line-search-area label {
+            display: block;
+            margin-bottom: 9px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .line-search-wrap {
+            display: flex;
+            gap: 8px;
+        }
+
+        .line-search-wrap input {
+            flex: 1;
+            min-width: 0;
+            padding: 13px 14px;
+            color: #f1f5f2;
+            background: #101714;
+            border: 1px solid #34443a;
+            border-radius: 10px;
+            outline: none;
+        }
+
+        .line-search-wrap input:focus {
+            border-color: #36d17c;
+        }
+
+        .line-search-wrap button {
+            padding: 0 15px;
+            color: #101714;
+            background: #36d17c;
+            border: 0;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .line-search-help {
+            margin: 9px 0 13px;
+            color: #9eada3;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .line-results {
+            display: grid;
+            gap: 9px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .line-card {
+            padding: 13px;
+            text-align: left;
+            color: #eaf2ec;
+            background: #17221c;
+            border: 1px solid #304137;
+            border-radius: 11px;
+            cursor: pointer;
+            transition: border-color .2s, background .2s;
+        }
+
+        .line-card:hover {
+            border-color: #36d17c;
+            background: #1d2b22;
+        }
+
+        .line-card strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #36d17c;
+            font-size: 15px;
+        }
+
+        .line-card span {
+            display: block;
+            margin-top: 4px;
+            color: #bdc9c0;
+            font-size: 12px;
+        }
+
+        .line-empty {
+            padding: 14px;
+            color: #aab7ad;
+            background: #17221c;
+            border-radius: 10px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .line-status {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 5px 8px;
+            color: #b9e8ca;
+            background: #203b2b;
+            border-radius: 6px;
+            font-size: 10px;
+        }
+
+        @media (max-width: 700px) {
+            .line-search-wrap {
+                flex-direction: column;
+            }
+
+            .line-search-wrap button {
+                min-height: 42px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="topbar">
+        <a class="brand" href="home.html">
+            <span class="brand-symbol">B</span>
+            <span>busway</span>
+        </a>
+
+        <nav class="top-links">
+            <a href="home.html">Início</a>
+            <a class="active" href="rotas.html">Rotas</a>
+            <a href="tempo-real.html">Tempo real</a>
+        </nav>
+
+        <a class="back-link" href="home.html">Voltar ao mapa</a>
+    </header>
+
+    <main class="page-layout">
+
+        <section class="route-panel">
+
+            <div class="eyebrow">
+                <span class="status-dot"></span>
+                PLANEJAMENTO DE VIAGEM
+            </div>
+
+            <h1>Para onde<br>vamos hoje?</h1>
+
+            <p class="intro">
+                Encontre caminhos para chegar ao seu destino usando
+                o transporte público de João Pessoa.
+            </p>
+
+            <form id="routeForm" class="route-form">
+
+                <div class="field-group">
+                    <label for="origin">Ponto de partida</label>
+
+                    <div class="input-wrap">
+                        <span class="field-icon origin-icon"></span>
+
+                        <input
+                            id="origin"
+                            name="origin"
+                            type="text"
+                            placeholder="Sua localização atual"
+                            autocomplete="off"
+                        >
+
+                        <button
+                            class="location-action"
+                            id="useLocation"
+                            type="button"
+                            title="Usar minha localização"
+                        >◎</button>
+                    </div>
+                </div>
+
+                <div class="route-connector">
+                    <span></span>
+                </div>
+
+                <div class="field-group">
+                    <label for="destination">Destino</label>
+
+                    <div class="input-wrap">
+                        <span class="field-icon destination-icon"></span>
+
+                        <input
+                            id="destination"
+                            name="destination"
+                            type="text"
+                            placeholder="Digite um endereço ou lugar"
+                            autocomplete="off"
+                            required
+                        >
+                    </div>
+                </div>
+
+                <button class="search-button" type="submit">
+                    <span>Buscar destino</span>
+                    <span>↗</span>
+                </button>
+
+                <p class="form-message" id="formMessage" role="status">
+                    Informe um destino para visualizar sua localização no mapa.
+                </p>
+
+            </form>
+
+            <div class="panel-divider"></div>
+
+            <section class="line-search-area">
+
+                <div class="results-heading">
+                    <div>
+                        <span class="section-kicker">TRANSPORTE PÚBLICO</span>
+                        <h2>Pesquisar linhas</h2>
+                    </div>
+                </div>
+
+                <label for="lineSearch">Número ou nome da linha</label>
+
+                <div class="line-search-wrap">
+                    <input
+                        type="search"
+                        id="lineSearch"
+                        placeholder="Ex.: 301, Mangabeira..."
+                        autocomplete="off"
+                    >
+
+                    <button type="button" id="searchLineButton">
+                        Buscar
+                    </button>
+                </div>
+
+                <p class="line-search-help" id="lineSearchMessage">
+                    Carregando os itinerários disponíveis...
+                </p>
+
+                <div class="line-results" id="lineResults">
+                    <div class="line-empty">
+                        Aguarde enquanto carregamos as linhas.
+                    </div>
+                </div>
+
+            </section>
+
+            <div class="panel-divider"></div>
+
+            <section class="results-area">
+
+                <div class="results-heading">
+                    <div>
+                        <span class="section-kicker">SUA VIAGEM</span>
+                        <h2>Opções de trajeto</h2>
+                    </div>
+
+                    <span class="soon-tag">EM CONSTRUÇÃO</span>
+                </div>
+
+                <div class="empty-state" id="routeResults">
+                    <div class="empty-icon">⌁</div>
+
+                    <h3>Seu caminho começa aqui</h3>
+
+                    <p>
+                        Escolha um destino para marcar o local no mapa.
+                        As opções de transporte serão conectadas aos
+                        dados de ônibus nas próximas etapas.
+                    </p>
+                </div>
+
+            </section>
+
+        </section>
+
+        <section class="map-section">
+
+            <div class="map-heading">
+                <div>
+                    <span class="section-kicker">JOÃO PESSOA, PB</span>
+                    <h2>Explore o caminho</h2>
+                </div>
+
+                <span class="map-live">
+                    <span></span>
+                    MAPA
+                </span>
+            </div>
+
+            <div id="routeMap" class="route-map"></div>
+
+            <div class="map-note">
+                <span class="note-pin">●</span>
+                Selecione uma linha para visualizar seu itinerário
+                de referência no mapa.
+            </div>
+
+        </section>
+
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="../js/rotas.js"></script>
+
+</body>
+</html>

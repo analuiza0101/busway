@@ -539,11 +539,3 @@ body {
     visibility: visible;
     transform: translate(-50%, 0);
 }
-
-
-
-
-/*
-    Lembrar de ajeitar a configuração visual dos botões "+/-" do mapa, 
-    pois eles estão com um tamanho menor e estão sem borda arredondada.
-*/
