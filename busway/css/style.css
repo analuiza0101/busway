@@ -464,6 +464,16 @@ body {
     font-weight: bold;
 }
 
+.stop-eta {
+    color: #36d17c;
+    font-size: 12px;
+    margin: 5px 0 8px;
+}
+
+.stop-eta strong {
+    font-weight: bold;
+}
+
 .stop-message {
     color: #a7b5ac;
     font-size: 11px;

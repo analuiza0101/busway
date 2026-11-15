@@ -490,10 +490,25 @@ function getStopAddress(tags) {
         : "Endereço não informado";
 }
 
+//previsão simulada de chegada
+
+function getSimulatedArrivalMinutes(stopId, line, name) {
+
+    const value = String(stopId) + "-" + line + "-" + name;
+
+    let hash = 0;
+
+    for (let i = 0; i < value.length; i++) {
+        hash = (hash * 31 + value.charCodeAt(i)) | 0;
+    }
+
+    return 3 + (Math.abs(hash) % 23);
+}
+
 //mostra linhas no popup
 
 
-function createRoutesContent(routes) {
+function createRoutesContent(routes, stopId = "") {
 
     if (!routes.length) {
 
@@ -539,6 +554,7 @@ function createRoutesContent(routes) {
             groupedRoutes.set(key, {
                 line,
                 name,
+                etaMinutes: getSimulatedArrivalMinutes(stopId, line, name),
                 directions: []
             });
 
@@ -560,6 +576,11 @@ function createRoutesContent(routes) {
                 <span class="route-tag">
                     ${route.line}
                 </span>
+
+                <p class="stop-eta">
+                    Previsão simulada: aproximadamente
+                    <strong>${route.etaMinutes} min</strong>
+                </p>
 
                 <p class="stop-message">
                     <strong>Nome:</strong> ${route.name}
@@ -673,7 +694,7 @@ async function loadStopRoutes(stop, marker) {
         marker.setPopupContent(
             createStopPopup(
                 stop,
-                createRoutesContent(routeCache.get(stop.id))
+                createRoutesContent(routeCache.get(stop.id), stop.id)
             )
         );
 
@@ -751,7 +772,7 @@ async function loadStopRoutes(stop, marker) {
             marker.setPopupContent(
                 createStopPopup(
                     stop,
-                    createRoutesContent(routes)
+                    createRoutesContent(routes, stop.id)
                 )
             );
 
@@ -767,7 +788,7 @@ async function loadStopRoutes(stop, marker) {
             marker.setPopupContent(
                 createStopPopup(
                     stop,
-                    createRoutesContent(routes)
+                    createRoutesContent(routes, stop.id) 
                 )
             );
 
