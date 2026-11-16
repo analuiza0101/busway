@@ -259,31 +259,6 @@
 
             <div class="panel-divider"></div>
 
-            <section class="results-area">
-
-                <div class="results-heading">
-                    <div>
-                        <span class="section-kicker">SUA VIAGEM</span>
-                        <h2>Opções de trajeto</h2>
-                    </div>
-
-                    <span class="soon-tag">EM CONSTRUÇÃO</span>
-                </div>
-
-                <div class="empty-state" id="routeResults">
-                    <div class="empty-icon">⌁</div>
-
-                    <h3>Seu caminho começa aqui</h3>
-
-                    <p>
-                        Escolha um destino para marcar o local no mapa.
-                        As opções de transporte serão conectadas aos
-                        dados de ônibus nas próximas etapas.
-                    </p>
-                </div>
-
-            </section>
-
         </section>
 
         <section class="map-section">
@@ -300,7 +275,21 @@
                 </span>
             </div>
 
-            <div id="routeMap" class="route-map"></div>
+            <div class="route-map-container">
+                <div id="routeMap" class="route-map"></div>
+
+                <div class="route-legend">
+                    <div>
+                        <span class="legend-dot destination-dot"></span>
+                        Rota de destino
+                    </div>
+
+                    <div>
+                        <span class="legend-dot searched-line-dot"></span>
+                        Linha pesquisada
+                    </div>
+                </div>
+            </div>
 
             <div class="map-note">
                 <span class="note-pin">●</span>

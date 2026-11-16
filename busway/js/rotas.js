@@ -41,7 +41,7 @@ const camadaProximas = L.layerGroup().addTo(mapa);
 
 let camadaItinerarios = L.geoJSON(null, {
     style: {
-        color: "#36d17c",
+        color: "#f3f303",
         weight: 4,
         opacity: 0.85
     },
@@ -230,6 +230,7 @@ async function carregarItinerarios() {
 // PESQUISAR LINHAS
 // ==========================================
 
+
 function pesquisarLinhas() {
     const pesquisa = lineSearch.value
         .trim()
@@ -244,22 +245,61 @@ function pesquisarLinhas() {
         return;
     }
 
-    const resultados = todosItinerarios.filter(function (feature) {
-        const propriedades = feature.properties || {};
+    const encontrados = todosItinerarios.filter(function (feature) {
+        const dados = feature.properties || {};
 
-        const texto = Object.values(propriedades)
-            .filter(function (valor) {
-                return valor !== null && valor !== undefined;
-            })
-            .join(" ")
-            .toLowerCase();
+        const codigo = String(
+            dados.line_code || ""
+        ).trim().toLowerCase();
 
-        return texto.includes(pesquisa);
+        const nome = String(
+            dados.route_name || ""
+        ).toLowerCase();
+
+        if (/^\d+$/.test(pesquisa)) {
+            return codigo === pesquisa;
+        }
+
+        return codigo.includes(pesquisa) ||
+               nome.includes(pesquisa);
     });
 
-    mostrarResultadosLinhas(resultados);
-}
+    const grupos = new Map();
 
+    encontrados.forEach(function (feature) {
+        const dados = feature.properties || {};
+
+        const codigo = String(
+            dados.line_code ||
+            dados.source_line_id ||
+            "Sem código"
+        ).trim();
+
+        if (!grupos.has(codigo)) {
+            grupos.set(codigo, {
+                codigo: codigo,
+                nome: dados.route_name || "Itinerário de ônibus",
+                empresa: dados.operator_name || "Operadora não informada",
+                sentidos: new Set(),
+                features: []
+            });
+        }
+
+        const grupo = grupos.get(codigo);
+
+        const sentido =
+            dados.direction_name ||
+            dados.direction_code ||
+            "Sentido não informado";
+
+        grupo.sentidos.add(String(sentido));
+        grupo.features.push(feature);
+    });
+
+    mostrarResultadosLinhas(
+        Array.from(grupos.values())
+    );
+}
 
 // ==========================================
 // MOSTRAR RESULTADOS DA PESQUISA
@@ -279,60 +319,36 @@ function mostrarResultadosLinhas(resultados) {
     }
 
     lineSearchMessage.textContent =
-        resultados.length + " resultado(s) encontrado(s).";
+        resultados.length + " linha(s) encontrada(s).";
 
-    resultados.slice(0, 30).forEach(function (feature, indice) {
-        const dados = feature.properties || {};
-
-        const codigo =
-            dados.line_code ||
-            dados.source_line_id ||
-            "Linha sem código";
-
-        const nome =
-            dados.route_name ||
-            "Itinerário de ônibus";
-
-        const sentido =
-            dados.direction_name ||
-            dados.direction_code ||
-            "Não informado";
-
-        const empresa =
-            dados.operator_name ||
-            "Operadora não informada";
-
+    resultados.slice(0, 30).forEach(function (grupo) {
         const cartao = document.createElement("button");
 
         cartao.type = "button";
         cartao.className = "line-card";
 
+        const sentidosHTML = Array.from(grupo.sentidos)
+            .map(function (sentido) {
+                return `<span>• ${escaparHTML(sentido)}</span>`;
+            })
+            .join("");
+
         cartao.innerHTML = `
-            <strong>${escaparHTML(String(codigo))}</strong>
-            <span>${escaparHTML(String(nome))}</span>
-            <span>Sentido: ${escaparHTML(String(sentido))}</span>
-            <span>Operadora: ${escaparHTML(String(empresa))}</span>
+            <strong>${escaparHTML(grupo.codigo)}</strong>
+            <span>${escaparHTML(String(grupo.nome))}</span>
+            <span><strong>Sentidos:</strong></span>
+            ${sentidosHTML}
+            <span>Operadora: ${escaparHTML(String(grupo.empresa))}</span>
             <span class="line-status">Traçado de referência</span>
         `;
 
         cartao.addEventListener("click", function () {
-            mostrarItinerario(feature);
+            mostrarItinerario(grupo.features[0]);
         });
 
         lineResults.appendChild(cartao);
     });
-
-    if (resultados.length > 30) {
-        const aviso = document.createElement("div");
-
-        aviso.className = "line-empty";
-        aviso.textContent =
-            "Mostrando os primeiros 30 resultados. Refine sua pesquisa para encontrar uma linha específica.";
-
-        lineResults.appendChild(aviso);
-    }
 }
-
 
 // ==========================================
 // MOSTRAR ITINERÁRIO NO MAPA
@@ -362,87 +378,6 @@ function mostrarItinerario(feature) {
     lineSearchMessage.textContent =
         "Itinerário selecionado: " + codigo + " — " + nome;
 }
-
-
-// ==========================================
-// ENCONTRAR PARADAS MAIS PRÓXIMAS
-// ==========================================
-
-function encontrarParadasProximas(coordenada) {
-    return todasParadas
-        .map(function (parada) {
-            return {
-                ...parada,
-
-                distancia: calcularDistancia(
-                    coordenada.lat,
-                    coordenada.lng,
-                    parada.latitude,
-                    parada.longitude
-                )
-            };
-        })
-        .sort(function (a, b) {
-            return a.distancia - b.distancia;
-        })
-        .slice(0, 3);
-}
-
-
-// ==========================================
-// MOSTRAR PARADAS PRÓXIMAS
-// ==========================================
-
-function mostrarParadasProximas(origem, destino) {
-    camadaProximas.clearLayers();
-
-    const paradasOrigem = encontrarParadasProximas(origem);
-    const paradasDestino = encontrarParadasProximas(destino);
-
-    paradasOrigem.forEach(function (parada) {
-        L.circleMarker(
-            [parada.latitude, parada.longitude],
-            {
-                radius: 8,
-                color: "#36d17c",
-                fillColor: "#36d17c",
-                fillOpacity: 1,
-                weight: 2
-            }
-        )
-            .bindPopup(`
-                <strong>Parada próxima da origem</strong><br>
-                ${escaparHTML(parada.nome)}<br>
-                Distância em linha reta: ${parada.distancia.toFixed(2)} km
-            `)
-            .addTo(camadaProximas);
-    });
-
-    paradasDestino.forEach(function (parada) {
-        L.circleMarker(
-            [parada.latitude, parada.longitude],
-            {
-                radius: 8,
-                color: "#64b5f6",
-                fillColor: "#64b5f6",
-                fillOpacity: 1,
-                weight: 2
-            }
-        )
-            .bindPopup(`
-                <strong>Parada próxima do destino</strong><br>
-                ${escaparHTML(parada.nome)}<br>
-                Distância em linha reta: ${parada.distancia.toFixed(2)} km
-            `)
-            .addTo(camadaProximas);
-    });
-
-    return {
-        origem: paradasOrigem,
-        destino: paradasDestino
-    };
-}
-
 
 // ==========================================
 // PESQUISAR ENDEREÇO
@@ -517,7 +452,7 @@ function desenharCaminho(caminho) {
 
     linhaRota = L.geoJSON(caminho.geometry, {
         style: {
-            color: "#36d17c",
+            color: "#2563EB",
             weight: 5,
             opacity: 0.9
         }
@@ -538,60 +473,25 @@ function mostrarMarcadores(origem, destino) {
         mapa.removeLayer(marcadorDestino);
     }
 
-    marcadorOrigem = L.marker([origem.lat, origem.lng])
+    const iconeAzul = L.divIcon({
+        className: "custom-marker",
+        html: '<div style="background: #2563EB; width: 16px; height: 16px; border: 2px solid white; border-radius: 50%;"></div>',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+    });
+
+    marcadorOrigem = L.marker([origem.lat, origem.lng], {
+        icon: iconeAzul
+    })
         .addTo(mapa)
         .bindPopup("<strong>Ponto de partida</strong>");
 
-    marcadorDestino = L.marker([destino.lat, destino.lng])
+    marcadorDestino = L.marker([destino.lat, destino.lng], {
+        icon: iconeAzul
+    })
         .addTo(mapa)
         .bindPopup("<strong>Destino</strong>");
 }
-
-
-// ==========================================
-// MOSTRAR RESULTADOS DO TRAJETO
-// ==========================================
-
-function mostrarResultados(paradas) {
-    routeResults.innerHTML = `
-        <div class="empty-icon">⌁</div>
-
-        <h3>Locais encontrados</h3>
-
-        <p>
-            Estas são as paradas mais próximas dos pontos
-            escolhidos. As distâncias são aproximadas e em
-            linha reta.
-        </p>
-
-        <h3>Próximas da origem</h3>
-
-        <div>
-            ${paradas.origem.map(function (parada) {
-        return `
-                    <p>
-                        <strong>${escaparHTML(parada.nome)}</strong><br>
-                        ${parada.distancia.toFixed(2)} km de distância
-                    </p>
-                `;
-    }).join("")}
-        </div>
-
-        <h3>Próximas do destino</h3>
-
-        <div>
-            ${paradas.destino.map(function (parada) {
-        return `
-                    <p>
-                        <strong>${escaparHTML(parada.nome)}</strong><br>
-                        ${parada.distancia.toFixed(2)} km de distância
-                    </p>
-                `;
-    }).join("")}
-        </div>
-    `;
-}
-
 
 // ==========================================
 // BUSCAR TRAJETO
@@ -634,10 +534,6 @@ routeForm.addEventListener("submit", async function (evento) {
 
         desenharCaminho(caminho);
         mostrarMarcadores(origem, destino);
-
-        const paradas = mostrarParadasProximas(origem, destino);
-
-        mostrarResultados(paradas);
 
         mapa.fitBounds(linhaRota.getBounds(), {
             padding: [35, 35]
