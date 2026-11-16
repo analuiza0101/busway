@@ -1,3 +1,4 @@
+
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
 
 :root {
@@ -21,9 +22,12 @@ body {
     font-family: 'DM Sans', sans-serif;
 }
 
-button, input {
+button,
+input {
     font: inherit;
 }
+
+/* CABEÇALHO */
 
 .topbar {
     height: 76px;
@@ -82,6 +86,8 @@ button, input {
     border-radius: 10px;
 }
 
+/* ESTRUTURA PRINCIPAL */
+
 .page-layout {
     width: min(1440px, 100%);
     min-height: calc(100vh - 76px);
@@ -95,6 +101,8 @@ button, input {
 .route-panel {
     padding: 13px 0;
 }
+
+/* TÍTULOS */
 
 .eyebrow,
 .section-kicker {
@@ -134,6 +142,8 @@ h1 {
     font-size: 13px;
     line-height: 1.7;
 }
+
+/* FORMULÁRIO DE ROTAS */
 
 .route-form {
     padding: 21px;
@@ -238,11 +248,125 @@ h1 {
     line-height: 1.5;
 }
 
+/* DIVISÓRIAS */
+
 .panel-divider {
     height: 1px;
     margin: 27px 0 23px;
     background: var(--border);
 }
+
+/* PESQUISA DE LINHAS */
+
+.line-search-area {
+    margin-top: 25px;
+}
+
+.line-search-area label {
+    display: block;
+    margin-bottom: 9px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.line-search-wrap {
+    display: flex;
+    gap: 8px;
+}
+
+.line-search-wrap input {
+    flex: 1;
+    min-width: 0;
+    padding: 13px 14px;
+    color: #f1f5f2;
+    background: #101714;
+    border: 1px solid #34443a;
+    border-radius: 10px;
+    outline: none;
+}
+
+.line-search-wrap input:focus {
+    border-color: var(--green);
+}
+
+.line-search-wrap button {
+    padding: 0 15px;
+    color: #101714;
+    background: var(--green);
+    border: 0;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.line-search-wrap button:hover {
+    background: #51e28f;
+}
+
+.line-search-help {
+    margin: 9px 0 13px;
+    color: #9eada3;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.line-results {
+    display: grid;
+    gap: 9px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.line-card {
+    padding: 13px;
+    text-align: left;
+    color: #eaf2ec;
+    background: #17221c;
+    border: 1px solid #304137;
+    border-radius: 11px;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+}
+
+.line-card:hover {
+    border-color: var(--green);
+    background: #1d2b22;
+}
+
+.line-card strong {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--green);
+    font-size: 15px;
+}
+
+.line-card span {
+    display: block;
+    margin-top: 4px;
+    color: #bdc9c0;
+    font-size: 12px;
+}
+
+.line-empty {
+    padding: 14px;
+    color: #aab7ad;
+    background: #17221c;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.line-status {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 5px 8px;
+    color: #b9e8ca;
+    background: #203b2b;
+    border-radius: 6px;
+    font-size: 10px;
+}
+
+/* RESULTADOS DE ROTAS */
 
 .results-heading,
 .map-heading {
@@ -299,6 +423,8 @@ h1 {
     font-size: 10px;
     line-height: 1.65;
 }
+
+/* MAPA */
 
 .map-section {
     min-width: 0;
@@ -366,6 +492,8 @@ h1 {
     color: var(--green);
 }
 
+/* RESPONSIVIDADE */
+
 @media (max-width: 900px) {
     .page-layout {
         grid-template-columns: minmax(290px, 370px) minmax(0, 1fr);
@@ -412,10 +540,17 @@ h1 {
     .route-map {
         min-height: 390px;
     }
+
+    .line-search-wrap {
+        flex-direction: column;
+    }
+
+    .line-search-wrap button {
+        min-height: 42px;
+    }
 }
 
-
-/* Legenda do mapa de rotas */
+/* LEGENDA DO MAPA DE ROTAS */
 
 .route-map-container {
     position: relative;

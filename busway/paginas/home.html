@@ -10,18 +10,17 @@
 
     <title>Busway</title>
 
-    
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
     <link rel="stylesheet" href="../css/style.css">
 </head>
 
 <body>
- 
+
     <header class="header">
 
-        <button class="menu-button" id="menuButton"
-            aria-label="Abrir menu" aria-expanded="false">
+        <button class="menu-button" id="menuButton" aria-label="Abrir menu" aria-expanded="false">
             <span></span>
             <span></span>
             <span></span>
@@ -45,36 +44,28 @@
                 <span>busway</span>
             </a>
 
-            <button class="close-button" id="closeButton"
-                aria-label="Fechar menu">
+            <button class="close-button" id="closeButton" aria-label="Fechar menu">
             </button>
 
         </div>
 
         <p class="menu-subtitle">MENU PRINCIPAL</p>
 
-        <nav class="menu-options">
+        <nav class="top-links">
+            <a class="menu-item" href="home.html">
+                <span>⌂</span>
+                Início
+            </a>
 
-            <button class="menu-item" data-section="Salvos">
-                <span class="menu-icon">❤</span>
-                <span>Salvos</span>
-            </button>
+            <a class="menu-item" href="rotas.html">
+                <span>⇄</span>
+                Planejar rota
+            </a>
 
-            <button class="menu-item" data-section="Avisos">
-                <span class="menu-icon">⚠</span>
-                <span>Avisos</span>
-            </button>
-
-            <button class="menu-item" data-section="Configurações">
-                <span class="menu-icon">⚙</span>
-                <span>Configurações</span>
-            </button>
-
-            <button class="menu-item" data-section="Ajuda">
-                <span class="menu-icon">?</span>
-                <span>Ajuda</span>
-            </button>
-
+            <a class="menu-item" href="tempo-real.html">
+                <span>◎</span>
+                Tempo real
+            </a>
         </nav>
 
         <div class="sidebar-footer">
@@ -92,8 +83,7 @@
 
                 <div id="map" aria-label="Mapa de pontos de ônibus de João Pessoa"></div>
 
-                <button class="location-button" id="locationButton"
-                    title="Mostrar minha localização"
+                <button class="location-button" id="locationButton" title="Mostrar minha localização"
                     aria-label="Mostrar minha localização">
                     ⌖
                 </button>
@@ -129,4 +119,5 @@
     <script src="../js/main.js"></script>
 
 </body>
+
 </html>

@@ -41,12 +41,27 @@ function showNotification(message) {
     }, 3000);
 }
 
+
 document.querySelectorAll(".menu-item").forEach((item) => {
+
     item.addEventListener("click", () => {
-        const section = item.dataset.section;
+
         closeMenu();
-        showNotification(section + " será desenvolvido em breve!");
+
+        // Links de navegação seguem normalmente
+        if (item.tagName === "A" && item.getAttribute("href")) {
+            return;
+        }
+
+        // Opções sem link continuam usando a notificação
+        const section = item.dataset.section;
+
+        if (section) {
+            showNotification(section + " será desenvolvido em breve!");
+        }
+
     });
+
 });
 
 //mapa
@@ -1050,7 +1065,7 @@ async function loadBusStops() {
     displayBusStops(allStops);
 
     //Status do mapa.
-    
+
 
     if (emsAvailable && osmAvailable && routesAvailable) {
 

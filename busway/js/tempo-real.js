@@ -1,37 +1,23 @@
-
 // ========================================
 // BUSWAY - TEMPO REAL
-// ROTAS, PARADAS E PREVISÃO DE CHEGADA
+// ÔNIBUS, ROTAS, PARADAS E MOVIMENTAÇÃO
 // ========================================
 
 const centroJoaoPessoa = [-7.1195, -34.8450];
-
-// ========================================
-// ELEMENTOS HTML
-// ========================================
 
 const busList = document.getElementById("busList");
 const busSearch = document.getElementById("busSearch");
 const vehicleCount = document.getElementById("vehicleCount");
 const selectedVehicle = document.getElementById("selectedVehicle");
-
-const menuButton = document.getElementById("menuButton");
-const closeMenu = document.getElementById("closeMenu");
-const sidebar = document.getElementById("sidebar");
-const sidebarOverlay = document.getElementById("sidebarOverlay");
-
-const toast = document.getElementById("toast");
 const centerMapButton = document.getElementById("centerMap");
+const toast = document.getElementById("toast");
 
 let selectedBusId = null;
 let toastTimeout;
 
-// ========================================
-// CONFIGURAÇÕES
-// ========================================
-
-const TEMPO_PARADA = 5;
+// Configurações
 const INTERVALO_MOVIMENTO = 1000;
+const TEMPO_PARADA = 5;
 
 // ========================================
 // MAPA
@@ -40,7 +26,7 @@ const INTERVALO_MOVIMENTO = 1000;
 const map = L.map("map").setView(centroJoaoPessoa, 13);
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    attribution: '&copy; OpenStreetMap'
 }).addTo(map);
 
 // ========================================
@@ -129,28 +115,55 @@ function createStopIcon() {
 }
 
 // ========================================
+// CRIAR MARCADORES DOS ÔNIBUS
+// ========================================
+
+// IMPORTANTE: os marcadores são criados antes
+// de carregar as rotas.
+
+buses.forEach(bus => {
+
+    bus.lat = bus.waypoints[0][0];
+    bus.lng = bus.waypoints[0][1];
+
+    bus.marker = L.marker(
+        [bus.lat, bus.lng],
+        { icon: createBusIcon() }
+    ).addTo(map);
+
+    bus.marker.bindPopup(`
+        <strong>${bus.line}</strong><br>
+        Destino: ${bus.destination}<br>
+        Veículo: ${bus.id}
+    `);
+
+    bus.routeLoaded = false;
+    bus.routeError = false;
+    bus.stops = [];
+});
+
+// ========================================
 // DISTÂNCIA ENTRE COORDENADAS
 // ========================================
 
-function distanceInMeters(pointA, pointB) {
+function distanceInMeters(a, b) {
+
     const earthRadius = 6371000;
 
-    const lat1 = pointA[0] * Math.PI / 180;
-    const lat2 = pointB[0] * Math.PI / 180;
+    const lat1 = a[0] * Math.PI / 180;
+    const lat2 = b[0] * Math.PI / 180;
 
-    const deltaLat = (pointB[0] - pointA[0]) * Math.PI / 180;
-    const deltaLng = (pointB[1] - pointA[1]) * Math.PI / 180;
+    const deltaLat = (b[0] - a[0]) * Math.PI / 180;
+    const deltaLng = (b[1] - a[1]) * Math.PI / 180;
 
-    const a =
+    const value =
         Math.sin(deltaLat / 2) ** 2 +
         Math.cos(lat1) *
         Math.cos(lat2) *
         Math.sin(deltaLng / 2) ** 2;
 
-    return 6371000 * 2 * Math.atan2(
-        Math.sqrt(a),
-        Math.sqrt(1 - a)
-    );
+    return earthRadius * 2 *
+        Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
 }
 
 // ========================================
@@ -158,12 +171,14 @@ function distanceInMeters(pointA, pointB) {
 // ========================================
 
 function prepareRoute(bus, points) {
+
     bus.routePoints = points;
     bus.cumulativeDistances = [0];
 
     let totalDistance = 0;
 
     for (let i = 1; i < points.length; i++) {
+
         totalDistance += distanceInMeters(
             points[i - 1],
             points[i]
@@ -173,18 +188,27 @@ function prepareRoute(bus, points) {
     }
 
     bus.routeLength = totalDistance;
+
     bus.progress = 0;
     bus.direction = 1;
+
     bus.routeLoaded = true;
     bus.routeError = false;
+
     bus.isStopped = false;
     bus.dwellUntil = 0;
     bus.currentStop = null;
 
-    bus.lat = points[0][0];
-    bus.lng = points[0][1];
+    const position = getPositionAtDistance(bus, 0);
 
-    bus.marker.setLatLng([bus.lat, bus.lng]);
+    bus.lat = position[0];
+    bus.lng = position[1];
+
+    bus.marker.setLatLng(position);
+
+    if (bus.routeLine) {
+        map.removeLayer(bus.routeLine);
+    }
 
     bus.routeLine = L.polyline(points, {
         color: "#36d17c",
@@ -204,6 +228,7 @@ function prepareRoute(bus, points) {
 // ========================================
 
 function getPositionAtDistance(bus, distance) {
+
     const points = bus.routePoints;
     const distances = bus.cumulativeDistances;
 
@@ -225,11 +250,9 @@ function getPositionAtDistance(bus, distance) {
     const startDistance = distances[segment];
     const endDistance = distances[segment + 1];
 
-    const segmentLength = endDistance - startDistance;
-
-    const progress = segmentLength === 0
-        ? 0
-        : (distance - startDistance) / segmentLength;
+    const progress =
+        (distance - startDistance) /
+        (endDistance - startDistance);
 
     const start = points[segment];
     const end = points[segment + 1];
@@ -241,204 +264,31 @@ function getPositionAtDistance(bus, distance) {
 }
 
 // ========================================
-// FORMATAR TEMPO
-// ========================================
-
-function formatETA(seconds) {
-    if (!Number.isFinite(seconds)) {
-        return "Indisponível";
-    }
-
-    if (seconds <= 0) {
-        return "Chegando";
-    }
-
-    const minutes = Math.ceil(seconds / 60);
-
-    if (minutes < 1) {
-        return "Menos de 1 min";
-    }
-
-    if (minutes === 1) {
-        return "1 minuto";
-    }
-
-    return `${minutes} minutos`;
-}
-
-// ========================================
-// PREVISÃO DE CHEGADA NA PARADA
-// ========================================
-
-function estimateStopArrival(bus, targetStop) {
-    if (!bus.routeLoaded || !targetStop) {
-        return null;
-    }
-
-    if (
-        bus.isStopped &&
-        bus.currentStop === targetStop
-    ) {
-        return 0;
-    }
-
-    const speed = bus.speed / 3.6;
-
-    if (speed <= 0) {
-        return null;
-    }
-
-    let distance;
-
-    if (bus.direction === 1) {
-        if (targetStop.distance >= bus.progress) {
-            distance = targetStop.distance - bus.progress;
-        } else {
-            distance =
-                (bus.routeLength - bus.progress) +
-                (bus.routeLength - targetStop.distance);
-        }
-    } else {
-        if (targetStop.distance <= bus.progress) {
-            distance = bus.progress - targetStop.distance;
-        } else {
-            distance =
-                bus.progress +
-                targetStop.distance;
-        }
-    }
-
-    let estimatedSeconds = distance / speed;
-
-    // Se estiver parado, considera o tempo restante da parada.
-    if (bus.isStopped) {
-        estimatedSeconds += Math.max(
-            0,
-            (bus.dwellUntil - Date.now()) / 1000
-        );
-    }
-
-    // Conta as paradas que o ônibus encontrará antes do destino.
-    const stopsAhead = bus.stops.filter(stop => {
-        if (stop === targetStop) return false;
-
-        if (bus.direction === 1) {
-            if (targetStop.distance >= bus.progress) {
-                return (
-                    stop.distance > bus.progress &&
-                    stop.distance < targetStop.distance
-                );
-            }
-
-            return (
-                stop.distance > bus.progress ||
-                stop.distance < targetStop.distance
-            );
-        }
-
-        if (targetStop.distance <= bus.progress) {
-            return (
-                stop.distance < bus.progress &&
-                stop.distance > targetStop.distance
-            );
-        }
-
-        return (
-            stop.distance < bus.progress ||
-            stop.distance > targetStop.distance
-        );
-    });
-
-    estimatedSeconds +=
-        stopsAhead.length * TEMPO_PARADA;
-
-    return estimatedSeconds;
-}
-
-// ========================================
-// CONTEÚDO DO POPUP DA PARADA
-// ========================================
-
-function getStopPopupContent(bus, stop) {
-    const eta = estimateStopArrival(bus, stop);
-
-    let status = "Em percurso";
-
-    if (!bus.routeLoaded) {
-        status = "Calculando trajeto";
-    } else if (
-        bus.isStopped &&
-        bus.currentStop === stop
-    ) {
-        status = "Ônibus nesta parada";
-    } else if (bus.isStopped) {
-        status = "Ônibus parado em outra parada";
-    }
-
-    return `
-        <div style="min-width:190px;font-family:Arial,sans-serif;">
-            <strong style="font-size:14px;">
-                Parada ${stop.number}
-            </strong>
-
-            <p style="margin:7px 0 3px;">
-                <strong>${bus.line}</strong>
-            </p>
-
-            <p style="margin:3px 0;color:#666;">
-                Destino: ${bus.destination}
-            </p>
-
-            <hr style="border:0;border-top:1px solid #ddd;margin:9px 0;">
-
-            <p style="margin:4px 0;">
-                <strong>Chegada estimada:</strong>
-            </p>
-
-            <p style="margin:4px 0;color:#198754;font-size:16px;font-weight:bold;">
-                ${eta === null ? "Aguardando rota" : formatETA(eta)}
-            </p>
-
-            <small style="color:#777;">
-                ${status}
-            </small>
-
-            <p style="font-size:10px;color:#999;margin-top:8px;">
-                Previsão simulada, não oficial.
-            </p>
-        </div>
-    `;
-}
-
-// ========================================
-// CRIAR PARADAS NA ROTA
+// PARADAS
 // ========================================
 
 function createRouteStops(bus) {
+
+    bus.stops.forEach(stop => {
+        map.removeLayer(stop.marker);
+    });
+
     bus.stops = [];
 
     const interval = 700;
-    const margin = 250;
-
-    if (bus.routeLength < margin * 2) {
-        return;
-    }
-
-    let stopNumber = 1;
+    let number = 1;
 
     for (
         let distance = interval;
-        distance < bus.routeLength - margin;
+        distance < bus.routeLength - 250;
         distance += interval
     ) {
-        const position = getPositionAtDistance(
-            bus,
-            distance
-        );
+
+        const position = getPositionAtDistance(bus, distance);
 
         const stop = {
-            number: stopNumber,
-            distance: distance,
+            number,
+            distance,
             marker: null
         };
 
@@ -446,38 +296,17 @@ function createRouteStops(bus) {
             icon: createStopIcon()
         }).addTo(map);
 
-        stop.marker.bindPopup(
-            getStopPopupContent(bus, stop)
-        );
-
-        stop.marker.on("click", () => {
-            stop.marker.setPopupContent(
-                getStopPopupContent(bus, stop)
-            );
-
-            stop.marker.openPopup();
-        });
+        stop.marker.bindPopup(`
+            <strong>Parada ${number}</strong><br>
+            ${bus.line}<br>
+            Destino: ${bus.destination}<br>
+            <small>Previsão simulada.</small>
+        `);
 
         bus.stops.push(stop);
 
-        stopNumber++;
+        number++;
     }
-}
-
-// ========================================
-// ATUALIZAR PREVISÕES NOS POPUPS
-// ========================================
-
-function updateStopPopups() {
-    buses.forEach(bus => {
-        if (!bus.routeLoaded) return;
-
-        bus.stops.forEach(stop => {
-            stop.marker.setPopupContent(
-                getStopPopupContent(bus, stop)
-            );
-        });
-    });
 }
 
 // ========================================
@@ -485,19 +314,21 @@ function updateStopPopups() {
 // ========================================
 
 async function loadBusRoute(bus) {
+
     try {
+
         const coordinates = bus.waypoints
             .map(([lat, lng]) => `${lng},${lat}`)
             .join(";");
 
         const url =
             `https://router.project-osrm.org/route/v1/driving/${coordinates}` +
-            `?overview=full&geometries=geojson&steps=false`;
+            "?overview=full&geometries=geojson&steps=false";
 
         const response = await fetch(url);
 
         if (!response.ok) {
-            throw new Error("Erro ao consultar serviço de rotas.");
+            throw new Error("Serviço de rotas indisponível.");
         }
 
         const data = await response.json();
@@ -507,82 +338,36 @@ async function loadBusRoute(bus) {
             !data.routes ||
             !data.routes.length
         ) {
-            throw new Error("Nenhuma rota encontrada.");
+            throw new Error("Rota não encontrada.");
         }
 
-        const routePoints =
-            data.routes[0].geometry.coordinates.map(
-                coordinate => [
-                    coordinate[1],
-                    coordinate[0]
-                ]
-            );
+        const points = data.routes[0].geometry.coordinates.map(
+            coordinate => [
+                coordinate[1],
+                coordinate[0]
+            ]
+        );
 
-        if (routePoints.length < 2) {
-            throw new Error("Trajeto insuficiente.");
+        if (points.length < 2) {
+            throw new Error("Trajeto inválido.");
         }
 
-        prepareRoute(bus, routePoints);
-
-        renderBusList(busSearch.value);
-
-        if (selectedBusId === bus.id) {
-            updateSelectedVehicle(bus);
-        }
+        prepareRoute(bus, points);
 
     } catch (error) {
-        console.error(`Erro na rota ${bus.line}:`, error);
 
-        bus.routeError = true;
-
-        renderBusList(busSearch.value);
-    }
-}
-
-// ========================================
-// VERIFICAR CHEGADA À PARADA
-// ========================================
-
-function checkBusStops(bus, previousProgress, newProgress) {
-    if (bus.isStopped) {
-        if (Date.now() >= bus.dwellUntil) {
-            bus.isStopped = false;
-            bus.currentStop = null;
-        } else {
-            return;
-        }
-    }
-
-    const reachedStop = bus.stops.find(stop => {
-        if (bus.direction === 1) {
-            return (
-                previousProgress < stop.distance &&
-                newProgress >= stop.distance
-            );
-        }
-
-        return (
-            previousProgress > stop.distance &&
-            newProgress <= stop.distance
-        );
-    });
-
-    if (reachedStop) {
-        bus.progress = reachedStop.distance;
-        bus.isStopped = true;
-        bus.currentStop = reachedStop;
-        bus.dwellUntil = Date.now() + TEMPO_PARADA * 1000;
-
-        bus.marker.setLatLng(
-            getPositionAtDistance(bus, bus.progress)
+        console.warn(
+            `Usando rota simulada para ${bus.line}:`,
+            error
         );
 
-        reachedStop.marker.openPopup();
+        // Se o serviço externo falhar, utiliza
+        // os pontos definidos no próprio projeto.
 
-        if (selectedBusId === bus.id) {
-            updateSelectedVehicle(bus);
-        }
+        prepareRoute(bus, bus.waypoints);
     }
+
+    renderBusList(busSearch ? busSearch.value : "");
 }
 
 // ========================================
@@ -590,21 +375,25 @@ function checkBusStops(bus, previousProgress, newProgress) {
 // ========================================
 
 function moveBuses() {
+
     buses.forEach(bus => {
+
         if (!bus.routeLoaded || bus.routeLength <= 0) {
             return;
         }
 
         if (bus.isStopped) {
-            if (Date.now() >= bus.dwellUntil) {
-                bus.isStopped = false;
-                bus.currentStop = null;
-            } else {
+
+            if (Date.now() < bus.dwellUntil) {
                 return;
             }
+
+            bus.isStopped = false;
+            bus.currentStop = null;
         }
 
         const previousProgress = bus.progress;
+
         const metersPerSecond = bus.speed / 3.6;
 
         let newProgress =
@@ -623,13 +412,34 @@ function moveBuses() {
             bus.direction = 1;
         }
 
-        checkBusStops(
-            bus,
-            previousProgress,
-            newProgress
-        );
+        // Verifica se chegou a uma parada.
 
-        if (!bus.isStopped) {
+        const reachedStop = bus.stops.find(stop => {
+
+            if (bus.direction === 1) {
+                return (
+                    previousProgress < stop.distance &&
+                    newProgress >= stop.distance
+                );
+            }
+
+            return (
+                previousProgress > stop.distance &&
+                newProgress <= stop.distance
+            );
+        });
+
+        if (reachedStop) {
+
+            bus.progress = reachedStop.distance;
+            bus.isStopped = true;
+            bus.currentStop = reachedStop;
+            bus.dwellUntil = Date.now() + TEMPO_PARADA * 1000;
+
+            reachedStop.marker.openPopup();
+
+        } else {
+
             bus.progress = newProgress;
         }
 
@@ -642,6 +452,7 @@ function moveBuses() {
         bus.lng = position[1];
 
         bus.marker.setLatLng(position);
+        bus.marker.bringToFront();
     });
 }
 
@@ -650,9 +461,11 @@ function moveBuses() {
 // ========================================
 
 function renderBusList(search = "") {
+
     const searchText = search.toLowerCase();
 
     const filteredBuses = buses.filter(bus => {
+
         return (
             bus.line.toLowerCase().includes(searchText) ||
             bus.id.toLowerCase().includes(searchText) ||
@@ -663,6 +476,7 @@ function renderBusList(search = "") {
     vehicleCount.textContent = filteredBuses.length;
 
     if (filteredBuses.length === 0) {
+
         busList.innerHTML = `
             <div class="empty-list">
                 Nenhum ônibus encontrado.
@@ -673,16 +487,13 @@ function renderBusList(search = "") {
     }
 
     busList.innerHTML = filteredBuses.map(bus => {
-        let statusText = "Calculando rota";
+
+        let status = "Carregando rota";
 
         if (bus.routeLoaded) {
-            statusText = bus.isStopped
+            status = bus.isStopped
                 ? "● Na parada"
                 : "● Em movimento";
-        }
-
-        if (bus.routeError) {
-            statusText = "Rota indisponível";
         }
 
         return `
@@ -698,15 +509,18 @@ function renderBusList(search = "") {
                     <small>${bus.destination}</small>
                 </span>
 
-                <span class="bus-status">${statusText}</span>
+                <span class="bus-status">${status}</span>
             </button>
         `;
+
     }).join("");
 
     document.querySelectorAll(".bus-card").forEach(card => {
+
         card.addEventListener("click", () => {
             selectBus(card.dataset.id);
         });
+
     });
 }
 
@@ -715,22 +529,13 @@ function renderBusList(search = "") {
 // ========================================
 
 function updateSelectedVehicle(bus) {
-    let routeStatus = "Calculando trajeto";
-    let stopInformation = "Aguardando rota";
+
+    let status = "Carregando trajeto";
 
     if (bus.routeLoaded) {
-        routeStatus = bus.isStopped
+        status = bus.isStopped
             ? "Parado em uma parada"
             : "Seguindo trajeto pelas ruas";
-
-        stopInformation = bus.isStopped
-            ? `Parada ${bus.currentStop.number}`
-            : `${bus.stops.length} paradas no trajeto`;
-    }
-
-    if (bus.routeError) {
-        routeStatus = "Não foi possível calcular o trajeto";
-        stopInformation = "Indisponível";
     }
 
     selectedVehicle.innerHTML = `
@@ -744,18 +549,20 @@ function updateSelectedVehicle(bus) {
                 </p>
 
                 <span class="detail-tag">
-                    ${routeStatus}
+                    ${status}
                 </span>
             </div>
 
             <div class="detail-item">
                 <small>Velocidade simulada</small>
-                <strong>${bus.isStopped ? "0 km/h" : `${bus.speed} km/h`}</strong>
+                <strong>
+                    ${bus.isStopped ? "0 km/h" : bus.speed + " km/h"}
+                </strong>
             </div>
 
             <div class="detail-item">
                 <small>Paradas no trajeto</small>
-                <strong>${stopInformation}</strong>
+                <strong>${bus.stops.length}</strong>
             </div>
 
             <div class="detail-item">
@@ -772,6 +579,7 @@ function updateSelectedVehicle(bus) {
 // ========================================
 
 function selectBus(id) {
+
     const bus = buses.find(item => item.id === id);
 
     if (!bus) return;
@@ -779,6 +587,7 @@ function selectBus(id) {
     selectedBusId = id;
 
     renderBusList(busSearch.value);
+
     updateSelectedVehicle(bus);
 
     map.flyTo([bus.lat, bus.lng], 15, {
@@ -801,37 +610,11 @@ busSearch.addEventListener("input", () => {
 // ========================================
 
 centerMapButton.addEventListener("click", () => {
+
     map.flyTo(centroJoaoPessoa, 13, {
         duration: 1
     });
-});
 
-// ========================================
-// MENU LATERAL
-// ========================================
-
-function openMenu() {
-    sidebar.classList.add("open");
-    sidebarOverlay.classList.add("show");
-}
-
-function closeSidebar() {
-    sidebar.classList.remove("open");
-    sidebarOverlay.classList.remove("show");
-}
-
-menuButton.addEventListener("click", openMenu);
-closeMenu.addEventListener("click", closeSidebar);
-sidebarOverlay.addEventListener("click", closeSidebar);
-
-// ========================================
-// OPÇÕES DO MENU
-// ========================================
-
-document.querySelectorAll(".menu-option").forEach(option => {
-    option.addEventListener("click", () => {
-        showToast(option.dataset.message);
-    });
 });
 
 // ========================================
@@ -839,6 +622,7 @@ document.querySelectorAll(".menu-option").forEach(option => {
 // ========================================
 
 function showToast(message) {
+
     toast.textContent = message;
     toast.classList.add("show");
 
@@ -856,43 +640,50 @@ function showToast(message) {
 renderBusList();
 
 map.whenReady(() => {
+
     setTimeout(() => {
         map.invalidateSize();
-    }, 200);
+    }, 300);
+
 });
 
-async function initializeRoutes() {
-    await Promise.allSettled(
-        buses.map(bus => loadBusRoute(bus))
-    );
+// Inicia a movimentação automática.
 
-    const errors = buses.filter(bus => bus.routeError);
+setInterval(() => {
 
-    if (errors.length > 0) {
-        showToast(
-            "Alguns trajetos não puderam ser carregados."
-        );
-    }
-}
+    moveBuses();
 
-// Atualiza os ônibus a cada segundo.
-setInterval(moveBuses, INTERVALO_MOVIMENTO);
-
-// Atualiza os horários das paradas a cada 5 segundos.
-setInterval(updateStopPopups, 5000);
+}, INTERVALO_MOVIMENTO);
 
 // Atualiza a lista e os detalhes.
+
 setInterval(() => {
+
     renderBusList(busSearch.value);
 
     if (selectedBusId) {
-        const bus = buses.find(item => item.id === selectedBusId);
+
+        const bus = buses.find(
+            item => item.id === selectedBusId
+        );
 
         if (bus) {
             updateSelectedVehicle(bus);
         }
     }
+
 }, 1000);
 
-// Carrega as rotas.
+// Carrega as rotas de todos os ônibus.
+
+async function initializeRoutes() {
+
+    await Promise.allSettled(
+        buses.map(bus => loadBusRoute(bus))
+    );
+
+    showToast("Ônibus carregados no mapa!");
+
+}
+
 initializeRoutes();
