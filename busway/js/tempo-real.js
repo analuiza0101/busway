@@ -1,3 +1,4 @@
+
 // ========================================
 // BUSWAY - TEMPO REAL
 // ÔNIBUS, ROTAS, PARADAS E MOVIMENTAÇÃO
@@ -15,9 +16,9 @@ const toast = document.getElementById("toast");
 let selectedBusId = null;
 let toastTimeout;
 
-// Configurações
-const INTERVALO_MOVIMENTO = 1000;
-const TEMPO_PARADA = 5;
+const INTERVALO_MOVIMENTO = 250;
+const TEMPO_PARADA = 2;
+const FATOR_SIMULACAO = 6;
 
 // ========================================
 // MAPA
@@ -30,7 +31,7 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 }).addTo(map);
 
 // ========================================
-// ÔNIBUS SIMULADOS
+// ÔNIBUS
 // ========================================
 
 const buses = [
@@ -115,11 +116,8 @@ function createStopIcon() {
 }
 
 // ========================================
-// CRIAR MARCADORES DOS ÔNIBUS
+// CRIAR MARCADORES
 // ========================================
-
-// IMPORTANTE: os marcadores são criados antes
-// de carregar as rotas.
 
 buses.forEach(bus => {
 
@@ -128,7 +126,7 @@ buses.forEach(bus => {
 
     bus.marker = L.marker(
         [bus.lat, bus.lng],
-        { icon: createBusIcon() }
+        { icon: createBusIcon(), zIndexOffset: 1000 }
     ).addTo(map);
 
     bus.marker.bindPopup(`
@@ -143,7 +141,7 @@ buses.forEach(bus => {
 });
 
 // ========================================
-// DISTÂNCIA ENTRE COORDENADAS
+// DISTÂNCIA
 // ========================================
 
 function distanceInMeters(a, b) {
@@ -189,9 +187,13 @@ function prepareRoute(bus, points) {
 
     bus.routeLength = totalDistance;
 
-    bus.progress = 0;
-    bus.direction = 1;
+    // Cada ônibus começa em uma posição diferente.
+    const busIndex = buses.indexOf(bus);
+    const initialPositions = [0.08, 0.25, 0.42, 0.59, 0.76];
 
+    bus.progress = bus.routeLength * initialPositions[busIndex];
+
+    bus.direction = 1;
     bus.routeLoaded = true;
     bus.routeError = false;
 
@@ -199,7 +201,7 @@ function prepareRoute(bus, points) {
     bus.dwellUntil = 0;
     bus.currentStop = null;
 
-    const position = getPositionAtDistance(bus, 0);
+    const position = getPositionAtDistance(bus, bus.progress);
 
     bus.lat = position[0];
     bus.lng = position[1];
@@ -220,11 +222,11 @@ function prepareRoute(bus, points) {
 
     createRouteStops(bus);
 
-    bus.marker.bringToFront();
+    bus.marker.setZIndexOffset(1000);
 }
 
 // ========================================
-// POSIÇÃO AO LONGO DA ROTA
+// POSIÇÃO NA ROTA
 // ========================================
 
 function getPositionAtDistance(bus, distance) {
@@ -304,13 +306,12 @@ function createRouteStops(bus) {
         `);
 
         bus.stops.push(stop);
-
         number++;
     }
 }
 
 // ========================================
-// CARREGAR ROTAS PELAS RUAS
+// CARREGAR ROTAS
 // ========================================
 
 async function loadBusRoute(bus) {
@@ -342,10 +343,7 @@ async function loadBusRoute(bus) {
         }
 
         const points = data.routes[0].geometry.coordinates.map(
-            coordinate => [
-                coordinate[1],
-                coordinate[0]
-            ]
+            coordinate => [coordinate[1], coordinate[0]]
         );
 
         if (points.length < 2) {
@@ -357,17 +355,19 @@ async function loadBusRoute(bus) {
     } catch (error) {
 
         console.warn(
-            `Usando rota simulada para ${bus.line}:`,
+            `Rota simulada para ${bus.line}:`,
             error
         );
 
-        // Se o serviço externo falhar, utiliza
-        // os pontos definidos no próprio projeto.
+        bus.routeError = true;
+
+        // Garante que o ônibus funcione mesmo
+        // quando o serviço externo falhar.
 
         prepareRoute(bus, bus.waypoints);
     }
 
-    renderBusList(busSearch ? busSearch.value : "");
+    renderBusList(busSearch.value);
 }
 
 // ========================================
@@ -393,14 +393,16 @@ function moveBuses() {
         }
 
         const previousProgress = bus.progress;
+        const movementDirection = bus.direction;
 
-        const metersPerSecond = bus.speed / 3.6;
+        const metersPerSecond =
+            (bus.speed / 3.6) * FATOR_SIMULACAO;
 
         let newProgress =
             bus.progress +
             metersPerSecond *
             (INTERVALO_MOVIMENTO / 1000) *
-            bus.direction;
+            movementDirection;
 
         if (newProgress >= bus.routeLength) {
             newProgress = bus.routeLength;
@@ -412,11 +414,11 @@ function moveBuses() {
             bus.direction = 1;
         }
 
-        // Verifica se chegou a uma parada.
+        // Verifica a chegada em uma parada.
 
         const reachedStop = bus.stops.find(stop => {
 
-            if (bus.direction === 1) {
+            if (movementDirection === 1) {
                 return (
                     previousProgress < stop.distance &&
                     newProgress >= stop.distance
@@ -436,8 +438,6 @@ function moveBuses() {
             bus.currentStop = reachedStop;
             bus.dwellUntil = Date.now() + TEMPO_PARADA * 1000;
 
-            reachedStop.marker.openPopup();
-
         } else {
 
             bus.progress = newProgress;
@@ -452,7 +452,7 @@ function moveBuses() {
         bus.lng = position[1];
 
         bus.marker.setLatLng(position);
-        bus.marker.bringToFront();
+        bus.marker.setZIndexOffset(1000);
     });
 }
 
@@ -587,7 +587,6 @@ function selectBus(id) {
     selectedBusId = id;
 
     renderBusList(busSearch.value);
-
     updateSelectedVehicle(bus);
 
     map.flyTo([bus.lat, bus.lng], 15, {
@@ -647,15 +646,13 @@ map.whenReady(() => {
 
 });
 
-// Inicia a movimentação automática.
+// Movimentação contínua de todos os ônibus.
 
 setInterval(() => {
-
     moveBuses();
-
 }, INTERVALO_MOVIMENTO);
 
-// Atualiza a lista e os detalhes.
+// Atualização da lista e dos detalhes.
 
 setInterval(() => {
 
@@ -674,16 +671,30 @@ setInterval(() => {
 
 }, 1000);
 
-// Carrega as rotas de todos os ônibus.
+// ========================================
+// CARREGAR TODOS OS ÔNIBUS
+// ========================================
 
 async function initializeRoutes() {
+
+    // Prepara primeiro todos os ônibus com
+    // suas rotas locais, sem depender da internet.
+
+    buses.forEach(bus => {
+        prepareRoute(bus, bus.waypoints);
+    });
+
+    renderBusList();
+
+    showToast("Todos os ônibus estão em movimento!");
+
+    // Depois tenta melhorar as rotas usando OSRM.
 
     await Promise.allSettled(
         buses.map(bus => loadBusRoute(bus))
     );
 
-    showToast("Ônibus carregados no mapa!");
-
+    renderBusList();
 }
 
 initializeRoutes();
